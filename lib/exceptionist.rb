@@ -309,11 +309,7 @@ module ExceptionistDetails
   end
 
   module InstanceMethods
+    # There are no instance methods for the moment.
   end
 end
 
-class A
-  include Exceptionist
-end
-
-puts A.constants.inspect
