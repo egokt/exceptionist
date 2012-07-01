@@ -17,18 +17,18 @@
 # class A
 #   # Two alternative definitions of a handler for a given exception.
 #   # my_method is an instance method, and :instance_method is a keyword.
-#   catch_exception MyException, :in => :my_method, :with => :handler_method
-#   catch_exception MyException, :in => [:instance_method, :my_method], 
+#   rescue_exception MyException, :in => :my_method, :with => :handler_method
+#   rescue_exception MyException, :in => [:instance_method, :my_method], 
 #     :with => :handler_method
 #
 #   # definition of a specific handler for a given exception.
 #   # my_method is a singleton method
 #
 #   # definition of a catch-all exception handler for a given method
-#   catch_exceptions :in => my_method, :with => :another_handler_method
+#   rescue_exceptions :in => my_method, :with => :another_handler_method
 #
 #   # definition of a catch-all exception handler for all instance methods
-#   catch_exceptions :with => :handler_for_all_methods
+#   rescue_exceptions :with => :handler_for_all_methods
 # end
 
 module Exceptionist
@@ -206,7 +206,7 @@ module ExceptionistDetails
   end
 
 
-  def catch_all_exceptions_for_method( opts = {} )
+  def rescue_all_exceptions_for_method( opts = {} )
     ensure_opts( opts, OPT_KEY_HANDLER, OPT_KEY_METHOD )
 
     method_ref = opts[OPT_KEY_METHOD]
@@ -222,7 +222,7 @@ module ExceptionistDetails
   end
 
 
-  def catch_all_exceptions( opts = {} )
+  def rescue_all_exceptions( opts = {} )
     ensure_opts( opts, OPT_KEY_HANDLER )
 
     # TODO: Write this. The trick is that every current and future method
@@ -234,7 +234,7 @@ module ExceptionistDetails
 
     # Register an exception handler to handle given exceptions raised 
     # in the given method.
-    def catch_exception( exception, opts = {} )
+    def rescue_exception( exception, opts = {} )
       ensure_exception_class( exception )
       ensure_opts( opts, OPT_KEY_METHOD, OPT_KEY_HANDLER )
 
@@ -251,11 +251,11 @@ module ExceptionistDetails
     end
 
 
-    def catch_exceptions( opts = {} )
+    def rescue_exceptions( opts = {} )
       if opts.has_key?( OPT_KEY_METHOD )
-        catch_all_exceptions_for_method( opts )
+        rescue_all_exceptions_for_method( opts )
       else
-        catch_all_exceptions( opts )
+        rescue_all_exceptions( opts )
       end
     end
 
