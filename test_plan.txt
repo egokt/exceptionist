@@ -1,0 +1,27 @@
+Independent variables:
+
+- Exception class defined
+  -- In the class that includes exceptionist
+  -- Outside the class that includes exceptionist
+- Exception raising method defined 
+  -- before rescue_exception(s) call
+  -- after rescue_exception(s) call
+- Exception handler method defined
+  -- before rescue_exception(s) call
+  -- after rescue_exception(s) call
+- Rescue exceptions raised
+  -- in a specific method
+  -- in any method in the class
+- Rescue
+  -- a given exception
+  -- any exception
+- The method(s) to rescue exceptions of is(are)
+  -- singleton
+  -- instance
+
+Total test cases from independent variables: 64
+
+Other test cases:
+
+- Raised exception is not a subclass of Exception
+

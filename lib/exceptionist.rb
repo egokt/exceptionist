@@ -23,6 +23,9 @@
 #
 #   # definition of a specific handler for a given exception.
 #   # my_method is a singleton method
+#   rescue_exception MyException, :in => :my_method, :with => :handler_method
+#   rescue_exception MyException, :in => [:singleton_method, :my_method], 
+#     :with => :handler_method
 #
 #   # definition of a catch-all exception handler for a given method
 #   rescue_exceptions :in => my_method, :with => :another_handler_method
@@ -65,7 +68,7 @@ end
 # methods in this module, so they don't appear in the class that include
 # Exceptionist.
 module ExceptionistDetails
-  SINGLETON_METHOD_SYM = :singular_method
+  SINGLETON_METHOD_SYM = :singleton_method
   INSTANCE_METHOD_SYM = :instance_method
 
   METHOD_NAME_TEMPL = '__exceptionist_%s_orig'
@@ -153,7 +156,7 @@ module ExceptionistDetails
     end
   end
 
-  # Register singular method exception handler.
+  # Register singleton method exception handler.
   def self.register_sme_handler( klass, except_klass, method_sym, handler_sym )
     singleton_methods = klass.singleton_methods   # TODO: is this enough?
     if singleton_methods.include?( method_sym )
