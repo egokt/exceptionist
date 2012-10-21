@@ -1,3 +1,21 @@
+# Copyright 2012 Erek Gokturk
+#
+# This file is a part of Exceptionist.
+#
+# Exceptionist is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Exceptionist is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Exceptionist.  If not, see <http://www.gnu.org/licenses/>.
+
+
 class TestCaseFactory
 
   # - Exception class defined
@@ -71,6 +89,7 @@ class TestCaseFactory
     param_permutations.map do |ecd, ermd, ehmd, erp, re, refmt, ec|
       class_name = new_cls_name( TEST_CASE_CLS_NAME_PREFIX )
       ex_class_name, ex_class_def = exception_class_def( ec )
+      handler_name, handler_def = handler_method_def( refmt )
 
       <<-CASE_CODE
 
@@ -80,12 +99,33 @@ class #{class_name}
 
 #{ex_class_def if ecd == ECD_INSIDE_CLS}
 
+#{handler_def if ehmd == EHMD_BEFORE}
+
 # the call to inform exceptionist what we want
 #{exceptionist_call( erp, re, refmt, ex_class_name )}
 
+#{handler_def if ehmd == EHMD_AFTER}
 end
 
       CASE_CODE
+    end
+  end
+
+  def self.handler_def( method_type )
+    case refmt
+    when REFMT_INSTANCE
+      <<-HANDLER_CODE
+def exception_handler( exc )
+end
+      HANDLER_CODE
+    when REFMT_SINGLETON
+      <<-HANDLER_CODE
+def self.exception_handler( exc )
+end
+      HANDLER_CODE
+    else
+      # Internal error. Should not have happened.
+      raise ArgumentError
     end
   end
 
@@ -111,44 +151,40 @@ end
   end
 
   def self.exceptionist_call( rescue_from_what, rescue_what, method_type, 
-      method_name, exception_class_name )
+      method_name, handler_method_name, exception_class_name )
+
+    method =
+      case method_type
+      when REFMT_SINGLETON
+        ":in => [:singleton, :#{method_name}]"
+      when REFMT_INSTANCE
+        "in => [:instance, :#{method_name}]"
+      else
+        # unknown type. internal error
+        raise ArgumentError
+      end
+
+    handler = ":with => :#{handler_method_name}"
 
     case
     when rescue_from_what == ERP_IN_SPECIFIC_METHOD && 
         rescue_what == RE_SPECIFIC_EXCEPTION
-      "rescue_exception #{exception_class_name}, :in => :#{method_name}"
+      "rescue_exception #{exception_class_name}, #{method_def}, #{handler_def}"
     when rescue_from_what == ERP_IN_SPECIFIC_METHOD && 
         rescue_what == RE_ANY_EXCEPTION
-      "rescue_exceptions :in => :#{method_name}"
+      # TODO: Not Possible... Need to enhance the exceptionist
+      # "rescue_exceptions :in => :#{method_name}"
+      raise ArgumentError
     when rescue_from_what == ERP_IN_ANY_METHOD_IN_CLS && 
         rescue_what == RE_SPECIFIC_EXCEPTION
       # TODO: Not Possible... Need to enhance the exceptionist
-
-
-        -------------------------
-        Working on this
-        -------------------------
-
+      raise ArgumentError
     when rescue_from_what == ERP_IN_ANY_METHOD_IN_CLS && 
         rescue_what == RE_ANY_EXCEPTION
+      "rescue_exceptions "
     else # unknown option
       raise ArgumentError
     end
-
-    
-    exceptionist_method = 
-      case rescue_from_what
-      when ERP_IN_SPECIFIC_METHOD then 'rescue_exception'
-      when ERP_IN_ANY_METHOD_IN_CLS then 'rescue_exceptions'
-
-    exception =
-      case rescue_what
-      when RE_SPECIFIC_EXCEPTION
-        gt
-      when RE_ANY_EXCEPTION
-      else # unknown option
-        raise ArgumentError
-      end
   end
 
   def self.new_cls_name( prefix )

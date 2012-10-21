@@ -15,24 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Exceptionist.  If not, see <http://www.gnu.org/licenses/>.
 
-set_trace_func proc { |event, file, line, id, binding, classname|
-  printf "%8s %s:%-2d %10s %8s\n", event, file, line, id, classname
-}
+require './test_helper'
 
-class A
-  def a
-    puts "a was called"
-  end
-  alias_method :send_orig, :send
-  def send(*args)
-    puts "send #{args.inspect}"
+class ExceptionistTest < Test::Unit::Testcase
+
+
+  def test_cases_produced_by_test_case_factory
+    puts TestCaseFactory.create_test_case_set.join( "\n\n\n" )
   end
 
-  alias_method :ssend_orig, :__send__
-  def __send__(*args)
-    puts "__send__ #{args.inspect}"
-  end
 end
-
-ai = A.new
-ai.a
