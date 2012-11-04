@@ -189,9 +189,10 @@ end
 
   def self.new_cls_name( prefix )
     # use sec since epoch + nanosecs to create a unique class name
-    do
+    begin
       cls_name = prefix  + Time.now.strftime( '%s%N' )
-    while const_defined?( cls_name.to_sym )
+    end while const_defined?( cls_name.to_sym )
     cls_name
   end
+
 end

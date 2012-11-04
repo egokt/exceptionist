@@ -15,3 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Exceptionist.  If not, see <http://www.gnu.org/licenses/>.
 
+require 'rake/testtask'
+
+task :default => :test
+
+Rake::TestTask.new do |t|
+  t.libs << "test"
+  t.test_files = FileList['test/test*.rb']
+  t.verbose = true
+end
