@@ -1,0 +1,6 @@
+- Add standard actions: ignore, ?
+- Allow addition of custom defined actions, to be used across all the classes
+  in the program. I.e. one can define an action "mylogger", and have
+exceptionist declarations to just refer to that action
+- Add ability to catch a given exception (or all exceptions) in all classes (or
+  everywhere)
