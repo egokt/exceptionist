@@ -36,7 +36,7 @@ class TestCaseFactory
   # -- before rescue_exception(s) call
   # -- after rescue_exception(s) call
   EHMD_BEFORE = :exception_handler_method_def_before_raise_exception_call
-  EHMD_AFTER = :exception_handler_method_def_before_raise_exception_call
+  EHMD_AFTER = :exception_handler_method_def_after_raise_exception_call
   EXCEPTION_HANDLER_METH_DEF_LOC_ALT = [EHMD_BEFORE, EHMD_AFTER]
 
 
@@ -84,49 +84,128 @@ class TestCaseFactory
   TEST_CASE_CLS_NAME_PREFIX = 'ExceptionistTestCase'
   EXCEPTION_CLS_NAME_PREFIX = 'ExceptionistException'
 
-  def self.create_test_case_set
-    param_permutations = INDEPENDENT_PARAM_SETS.permutation
-    param_permutations.map do |ecd, ermd, ehmd, erp, re, refmt, ec|
-      class_name = new_cls_name( TEST_CASE_CLS_NAME_PREFIX )
-      ex_class_name, ex_class_def = exception_class_def( ec )
-      handler_name, handler_def = handler_method_def( refmt )
-
-      <<-CASE_CODE
-
-#{ex_class_def if ecd == ECD_OUTSIDE_CLS}
-
-class #{class_name}
-
-#{ex_class_def if ecd == ECD_INSIDE_CLS}
-
-#{handler_def if ehmd == EHMD_BEFORE}
-
-# the call to inform exceptionist what we want
-#{exceptionist_call( erp, re, refmt, ex_class_name )}
-
-#{handler_def if ehmd == EHMD_AFTER}
-end
-
-      CASE_CODE
-    end
+  def self.create_test_case_set( handler_callback_expr )
+    param_permutations =
+      INDEPENDENT_PARAM_SETS.first.product( *INDEPENDENT_PARAM_SETS[1..-1] )
+    test_cases = 
+      param_permutations.map do |params|
+        begin
+          create_test_case( handler_callback_expr, *params )
+        rescue ArgumentError => e
+          # just ignore that test case, but log a friendly message
+          puts 'This case will be ignored: ' + params.inspect
+          # puts e.backtrace.join("\n")
+          nil
+        end
+      end
+    test_cases.compact
   end
 
-  def self.handler_def( method_type )
-    case refmt
-    when REFMT_INSTANCE
-      <<-HANDLER_CODE
-def exception_handler( exc )
+  def self.create_test_case(
+        handler_callback_expr,
+        exception_cls_def_loc,
+        exception_raising_meth_def_loc,
+        exception_handler_meth_def_loc,
+        exception_raising_point,
+        rescued_exception,
+        rescue_exceptions_from_method_type,
+        exception_class
+      )
+    class_name = new_cls_name( TEST_CASE_CLS_NAME_PREFIX )
+    ex_class_name, ex_class_def = exception_class_def( exception_class )
+    handler_name, handler_definition = 
+      handler_def( rescue_exceptions_from_method_type, handler_callback_expr )
+
+    method_name, method_definition =
+      method_def( rescue_exceptions_from_method_type, ex_class_name )
+
+    exceptionist_call_params = [
+      exception_raising_point,
+      rescued_exception,
+      rescue_exceptions_from_method_type,
+      method_name,
+      handler_name,
+      ex_class_name
+    ]
+
+    <<-CASE_CODE
+#{ex_class_def if exception_cls_def_loc == ECD_OUTSIDE_CLS}
+class #{class_name}
+#{ex_class_def if exception_cls_def_loc == ECD_INSIDE_CLS}
+#{handler_definition if exception_handler_meth_def_loc == EHMD_BEFORE}
+#{method_definition if exception_raising_meth_def_loc == ERMD_BEFORE}
+# the call to inform exceptionist what we want
+#{exceptionist_call( *exceptionist_call_params )}
+#{method_definition if exception_raising_meth_def_loc == ERMD_AFTER}
+#{handler_definition if exception_handler_meth_def_loc == EHMD_AFTER}
 end
-      HANDLER_CODE
-    when REFMT_SINGLETON
-      <<-HANDLER_CODE
-def self.exception_handler( exc )
+
+#{method_runner( rescue_exceptions_from_method_type, class_name, method_name )}
+    CASE_CODE
+  end
+
+  def self.method_runner( method_type, class_name, method_name )
+    retval = 
+    case method_type
+      when REFMT_INSTANCE
+        <<-METHOD_RUNNER
+#{class_name}.new.#{method_name}
+        METHOD_RUNNER
+      when REFMT_SINGLETON
+        <<-METHOD_RUNNER
+#{class_name}.#{method_name}
+        METHOD_RUNNER
+      else
+        # Internal error. Should not have happened.
+        raise ArgumentError
+      end
+    retval.strip
+  end
+
+  def self.method_def( method_type, exception_cls_name )
+    method_name = 'rescue_my_exceptions'
+    method_definition =
+      case method_type
+      when REFMT_INSTANCE
+        <<-METHOD_CODE
+def #{method_name}
+  raise #{exception_cls_name}
 end
-      HANDLER_CODE
-    else
-      # Internal error. Should not have happened.
-      raise ArgumentError
-    end
+        METHOD_CODE
+      when REFMT_SINGLETON
+        <<-METHOD_CODE
+def self.#{method_name}
+  raise #{exception_cls_name}
+end
+        METHOD_CODE
+      else
+        # Internal error. Should not have happened.
+        raise ArgumentError
+      end
+    [method_name, method_definition.strip]
+  end
+
+  def self.handler_def( method_type, handler_callback_expr )
+    handler_name = 'exception_handler'
+    retval = 
+      case method_type
+      when REFMT_INSTANCE
+        <<-HANDLER_CODE
+def #{handler_name}( exc )
+  #{handler_callback_expr}
+end
+        HANDLER_CODE
+      when REFMT_SINGLETON
+        <<-HANDLER_CODE
+def self.#{handler_name}( exc )
+  #{handler_callback_expr}
+end
+        HANDLER_CODE
+      else
+        # Internal error. Should not have happened.
+        raise ArgumentError
+      end
+    [handler_name, retval.strip]
   end
 
   def self.exception_class_def( exception_cls_type )
@@ -147,7 +226,7 @@ end
         # unknown option
         raise ArgumentError
       end
-    [cls_name, cls_def]
+    [cls_name.strip, cls_def.strip]
   end
 
   def self.exceptionist_call( rescue_from_what, rescue_what, method_type, 
@@ -169,7 +248,7 @@ end
     case
     when rescue_from_what == ERP_IN_SPECIFIC_METHOD && 
         rescue_what == RE_SPECIFIC_EXCEPTION
-      "rescue_exception #{exception_class_name}, #{method_def}, #{handler_def}"
+      "rescue_exception #{exception_class_name}, #{method}, #{handler}"
     when rescue_from_what == ERP_IN_SPECIFIC_METHOD && 
         rescue_what == RE_ANY_EXCEPTION
       # TODO: Not Possible... Need to enhance the exceptionist

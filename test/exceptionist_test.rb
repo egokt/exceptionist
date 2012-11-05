@@ -15,13 +15,37 @@
 # You should have received a copy of the GNU General Public License
 # along with Exceptionist.  If not, see <http://www.gnu.org/licenses/>.
 
-require './test_helper'
+require 'test_helper'
 
-class ExceptionistTest < Test::Unit::Testcase
+class ExceptionistTest < Test::Unit::TestCase
 
 
   def test_cases_produced_by_test_case_factory
-    puts TestCaseFactory.create_test_case_set.join( "\n\n\n" )
+    case_feedback_expr = 'ExceptionistTest.case_feedback_method'
+    test_cases = TestCaseFactory.create_test_case_set( case_feedback_expr )
+
+    test_cases.each do |test_case|
+      run_test_case( test_case )
+    end
+  end
+
+  def self.case_feedback_method
+   @@case_feedback_received = true
+  end
+
+  private
+
+  # here for debugging test cases
+  def run_test_case_print_only( test_case )
+    puts test_case + "\n\n\n\n\n"
+  end
+
+  def run_test_case( test_case )
+    @@case_feedback_received = false
+    assert_nothing_raised do
+      eval test_case
+    end
+    assert @@case_feedback_received
   end
 
 end
