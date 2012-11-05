@@ -111,7 +111,7 @@ module ExceptionistDetails
 
 
   def self.ensure_opts( opts, *keys )
-    unless 0 == opts.keys.sort <=> keys.sort
+    unless 0 == (opts.keys.sort <=> keys.sort)
       raise( ArgumentError, ERR_ARG_MISSING )
     end
 
@@ -120,7 +120,28 @@ module ExceptionistDetails
 
 
   def self.ensure_exception_class( klass )
-    unless klass.kind_of?( Exception )
+    # here is a problem: the following returns false in 1.9.3!
+    # class A
+    #   class B < Exception
+    #   end
+    # end
+    # A::B.kind_of?( Exception )
+    #
+    # So this does not work:
+    # unless klass.kind_of?( Exception )
+    #   raise( ArgumentError, ERR_ARG_NOT_EXCEPTION )
+    # end
+    #
+    # therefore, we check all ancestors to find out if any of them
+    # satisfies kind_of?( Exception )
+    ancestry = []
+    begin
+      ancestry << klass
+      klass = klass.superclass
+    end while klass
+
+    is_exception = !ancestry.detect {|kls| kls == Exception}.nil?
+    unless is_exception
       raise( ArgumentError, ERR_ARG_NOT_EXCEPTION )
     end
   end
@@ -136,7 +157,7 @@ module ExceptionistDetails
     method_ref_ok = 
       method_ref.kind_of?( Symbol ) ||
         ( method_ref.kind_of?( Array ) &&
-          method_ref.length = 2 &&
+          method_ref.length == 2 &&
           method_types.include?( method_ref.first ) &&
           method_ref.last.kind_of?( Symbol ) )
     raise( ArgumentError, ERR_ARG_METHOD_REF ) unless method_ref_ok
@@ -228,7 +249,7 @@ module ExceptionistDetails
 
 
   def rescue_all_exceptions_for_method( opts = {} )
-    ensure_opts( opts, OPT_KEY_HANDLER, OPT_KEY_METHOD )
+    ExceptionistDetails.ensure_opts( opts, OPT_KEY_HANDLER, OPT_KEY_METHOD )
 
     method_ref = opts[OPT_KEY_METHOD]
     handler_sym = opts[OPT_KEY_HANDLER]
@@ -236,15 +257,17 @@ module ExceptionistDetails
     method_kind, method_sym = interpret_method_ref( method_ref )
 
     if method_kind == INSTANCE_METHOD_SYM
-      register_ime_handler( self, Exception, method_sym, handler_sym )
+      ime_handler_params = [self, Exception, method_sym, handler_sym]
+      ExceptionistDetails.register_ime_handler( *ime_handler_params )
     else
-      register_sme_handler( self, Exception, method_ref.last, handler_sym )
+      sme_handler_params = [self, Exception, method_ref.last, handler_sym]
+      ExceptionistDetails.register_sme_handler( *sme_handler_params )
     end
   end
 
 
   def rescue_all_exceptions( opts = {} )
-    ensure_opts( opts, OPT_KEY_HANDLER )
+    ExceptionistDetails.ensure_opts( opts, OPT_KEY_HANDLER )
 
     # TODO: Write this. The trick is that every current and future method
     # should be wrapped.
@@ -256,8 +279,8 @@ module ExceptionistDetails
     # Register an exception handler to handle given exceptions raised 
     # in the given method.
     def rescue_exception( exception, opts = {} )
-      ensure_exception_class( exception )
-      ensure_opts( opts, OPT_KEY_METHOD, OPT_KEY_HANDLER )
+      ExceptionistDetails.ensure_exception_class( exception )
+      ExceptionistDetails.ensure_opts( opts, OPT_KEY_METHOD, OPT_KEY_HANDLER )
 
       method_ref = opts[OPT_KEY_METHOD]
       handler_sym = opts[OPT_KEY_HANDLER]
@@ -265,9 +288,11 @@ module ExceptionistDetails
       method_kind, method_sym = interpret_method_ref( method_ref )
 
       if method_kind == INSTANCE_METHOD_SYM
-        register_ime_handler( self, exception, method_sym, handler_sym )
+        ime_handler_params = [self, exception, method_sym, handler_sym]
+        register_ime_handler( *ime_handler_params )
       else
-        register_sme_handler( self, exception, method_ref.last, handler_sym )
+        sme_handler_params = [self, exception, method_ref.last, handler_sym]
+        register_sme_handler( *sme_handler_params )
       end
     end
 
@@ -282,7 +307,7 @@ module ExceptionistDetails
 
 
     def method_added( method_sym )
-      exceptionist_data = data_for( self.class )
+      exceptionist_data = ExceptionistDetails.data_for( self.class )
 
       # check if exceptionist is supposed to catch exceptions for this method
       inst_method_data = exceptionist_data[INSTANCE_METHOD_SYM][method_sym]
@@ -305,7 +330,7 @@ module ExceptionistDetails
     end
 
     def singleton_method_added( method_sym )
-      exceptionist_data = data_for( self.class )
+      exceptionist_data = ExceptionistDetails.data_for( self.class )
 
       # check if exceptionist is supposed to catch exceptions for this method
       singl_method_data = exceptionist_data[SINGLETON_METHOD_SYM][method_sym]
@@ -334,3 +359,4 @@ module ExceptionistDetails
   end
 end
 
+BasicObject.send( :include, Exceptionist )

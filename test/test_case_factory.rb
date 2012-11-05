@@ -84,13 +84,17 @@ class TestCaseFactory
   TEST_CASE_CLS_NAME_PREFIX = 'ExceptionistTestCase'
   EXCEPTION_CLS_NAME_PREFIX = 'ExceptionistException'
 
-  def self.create_test_case_set( handler_callback_expr )
-    param_permutations =
-      INDEPENDENT_PARAM_SETS.first.product( *INDEPENDENT_PARAM_SETS[1..-1] )
+  def self.create_test_case_set( callback_expr, allow_non_exceptions = false )
+    param_sets = INDEPENDENT_PARAM_SETS
+    unless allow_non_exceptions
+      # the last set is the exception class superclass alternatives
+      param_sets = param_sets[0...-1] + [[EC_SUBCLASS_OF_EXCEPITON]]
+    end
+    param_permutations = param_sets.first.product( *param_sets[1..-1] )
     test_cases = 
       param_permutations.map do |params|
         begin
-          create_test_case( handler_callback_expr, *params )
+          create_test_case( callback_expr, *params )
         rescue ArgumentError => e
           # just ignore that test case, but log a friendly message
           puts 'This case will be ignored: ' + params.inspect

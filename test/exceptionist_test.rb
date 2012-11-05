@@ -43,7 +43,13 @@ class ExceptionistTest < Test::Unit::TestCase
   def run_test_case( test_case )
     @@case_feedback_received = false
     assert_nothing_raised do
-      eval test_case
+      begin
+        eval test_case
+      rescue Exception => e
+        puts "\n\nException: #{e.message}\n\n#{test_case}\n\n" +
+          e.backtrace.join( "\n" )
+        raise
+      end
     end
     assert @@case_feedback_received
   end
